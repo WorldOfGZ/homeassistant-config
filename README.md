@@ -8,7 +8,12 @@ Il sera mis à jour en fonction de la pertinence des informations à partager.
 
 ## Packages
 > [!TIP]
-> Nécessite de déclarer `packages: !include_dir_named packages` sous `homeassistant:` dans le fichier `configuration.yml`
+> Nécessite de déclarer
+> ```
+> homeassistant:
+>   packages: !include_dir_named packages
+> ```
+> dans le fichier `configuration.yml`
 
 ### Météo
 Permet de récupérer les alertes météo l'API de Météo France. 
