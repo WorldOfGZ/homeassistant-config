@@ -9,6 +9,10 @@ Il sera mis à jour en fonction de la pertinence des informations à partager.
 > [!TIP]
 > Nécessite de déclarer `packages: !include_dir_named packages` sous `homeassistant:` dans le fichier `configuration.yml`
 
+### Vacances
+Permet de récupérer sur l'API de l'éducation nationale les prochaines vacances. 
+Deux binary sensors déduisent ensuite si on est actuellement en vacances ou non pour aujourd'hui et demain.
+
 ## Scripts Python
 > [!TIP]
 > Nécessite de déclarer `python_script:` dans le fichier `configuration.yml`

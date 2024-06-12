@@ -1,0 +1,75 @@
+# vacances_packages.yaml
+# Source : https://github.com/WorldOfGZ/homeassistant-config
+#
+# ===============================
+# Permet de récupérer sur l'API de l'éducation nationale si on est en vacances scolaires ou non
+# 
+# Paramétrage : 
+# Configurer la variable {% set location = 'Nancy-Metz' %} selon l'académie souhaitée
+#
+# ===============================
+# Entités créées :
+#  Sensors :
+#    sensor.vacances_scolaires
+#
+#  Binary sensors :
+#    binary_sensor.vacances_scolaires_aujourdhui
+#    binary_sensor.vacances_scolaires_demain
+#
+
+# ===============================
+# SENSORS
+# ===============================
+sensor:
+  #Récupération sur l'API de l'éducation nationale
+  - platform: rest
+    scan_interval: '06:00:00'
+    name: vacances_scolaires
+    json_attributes_path: "$.results[0]"
+    json_attributes:
+      - start_date
+      - end_date
+      - description
+    resource_template: |-
+      {% set location = 'Nancy-Metz' %}
+      {% set rows = '1'%}
+      {% set aujourdhui = now().strftime('%Y-%m-%d')%}
+      https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records?where=end_date%20%3E%3D%20%27{{aujourdhui}}%27&order_by=end_date&limit={{rows}}&offset=0&refine=location%3A{{location}}&lang=fr&timezone=Europe%2FParis&include_links=false&include_app_metas=false
+    value_template: |-
+      {% set aujourdhui = now() | as_timestamp %}
+      {% for record in value_json.results -%}
+      {% if record.start_date | as_timestamp <= aujourdhui and aujourdhui <= record.end_date | as_timestamp %} 
+      {%- if record.description %}{{record.description}} jusqu'au {{ as_timestamp(record.end_date) | timestamp_custom('%d-%m-%Y') }} {% endif %}
+      {% else %} 
+      {%- if record.end_date | as_timestamp > aujourdhui and record.description %} prochaines : {{record.description}} {{ as_timestamp(record.start_date) | timestamp_custom('%d-%m-%Y') }}{% endif %}
+      {% endif %}
+      {%- endfor %}
+
+# ===============================
+# SENSORS
+# ===============================
+template:
+  - binary_sensor:
+    #Vacances scolaires aujourd'hui
+    - name: vacances_scolaires_aujourdhui
+      unique_id: binary_sensor.vacances_scolaires_aujourdhui
+      state: |-
+        {% set aujourdhui = now() | as_timestamp %}
+        {% if aujourdhui >= state_attr('sensor.vacances_scolaires', 'start_date') | as_timestamp and aujourdhui <= state_attr('sensor.vacances_scolaires', 'end_date') | as_timestamp %}
+        true
+        {% else %} 
+        false
+        {% endif %}
+      icon: mdi:account-school
+  - binary_sensor:
+    #Vacances scolaires demain
+    - name: vacances_scolaires_demain
+      unique_id: binary_sensor.vacances_scolaires_demain
+      state: |-
+        {% set demain = (as_timestamp(now()) + (24*3600)) %}
+        {% if demain >= state_attr('sensor.vacances_scolaires', 'start_date') | as_timestamp and demain <= state_attr('sensor.vacances_scolaires', 'end_date') | as_timestamp %} 
+        true
+        {% else %} 
+        false
+        {% endif %}   
+      icon: mdi:account-school
