@@ -24,10 +24,15 @@
 #    sensor.meteo_france_alertes_image_today
 #    sensor.meteo_france_alertes_image_tomorrow
 #    sensor.meteo_alerte_55
+#
+#  Cameras :
+#    camera.mf_alerte_today
+#    camera.mf_alerte_tomorrow
 #    
 #  Images des cartes d'alertes sont enregistrées sous /www/weather/meteo_france_alerte_today.png et /www/weather/meteo_france_alerte_tomorrow.png
 #  Les sous-dossiers /www/weather doivent être créés.
-#  Les images sont à appeler avec une card "camera" pour accepter le refresh régulier, sinon problème de mise en cache régulier avec la card "image"
+#  Les images sont utilisées pour créer deux entités caméra. 
+#  C'est une façon détournée d'autoriser un refresh régulier d'une image sans avoir de problèmes de cache
 #
 
 # ===============================
@@ -251,3 +256,15 @@ template:
           {% endif %}
         attribution: "Data provided by Météo-France"
       icon: mdi:weather-cloudy-alert
+      
+# ===============================
+# CAMERA
+# ===============================
+camera:
+  - platform: local_file
+    name: "MF_alerte_today"
+    file_path: /config/www/weather/meteo_france_alerte_today.png
+  
+  - platform: local_file
+    name: "MF_alerte_tomorrow"
+    file_path: /config/www/weather/meteo_france_alerte_tomorrow.png

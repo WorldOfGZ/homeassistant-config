@@ -23,7 +23,7 @@
 sensor:
   #Récupération sur l'API de l'éducation nationale
   - platform: rest
-    scan_interval: '06:00:00'
+    scan_interval: 21600
     name: vacances_scolaires
     json_attributes_path: "$.results[0]"
     json_attributes:
