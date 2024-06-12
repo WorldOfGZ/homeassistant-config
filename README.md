@@ -14,13 +14,13 @@ Permet de récupérer les alertes météo l'API de Météo France.
 Les cartes d'alertes aujourd'hui et demain sont également récupérées pour pouvoir être affichées dans une card
 Un sensor additionnel plus facile utiliser dans les cards est également créé selon le retour de l'API 
 
-### Vacances
-Permet de récupérer sur l'API de l'éducation nationale les prochaines vacances. 
-Deux binary sensors déduisent ensuite si on est actuellement en vacances ou non pour aujourd'hui et demain.
-
 ### Speedtest
 Permet de réaliser des speedtest en CLI 
 Trois sensors sont créés à partir du résultat pour faciliter le traitement dans une card (graphique par exemple)
+
+### Vacances scolaires
+Permet de récupérer sur l'API de l'éducation nationale les prochaines vacances. 
+Deux binary sensors déduisent ensuite si on est actuellement en vacances ou non pour aujourd'hui et demain.
 
 ## Scripts Python
 > [!TIP]
