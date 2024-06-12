@@ -1,0 +1,253 @@
+# meteo_packages.yaml
+# Source : https://github.com/WorldOfGZ/homeassistant-config
+#
+# ===============================
+# Permet de récupérer les alertes météo sur l'API de météofrance
+# et également les cartes de vigilance
+#
+# Paramétrage :
+# Une clé API doit être créée et renseignée pour les appels CURL GET, 
+# à remplacer à la place de [EDITED], dans les 3 command_line
+#
+# L'API ne prend pas en compte les numéros de département réel... Dans ce package 
+# je récupère les données du département 55, ce qui correspond au domain_ids[44] dans l'API.
+# Ce numéro est à changer à 4 endroits dans la première requète, la table de correspondance est dispo ici :
+# https://forum.hacf.fr/t/alerte-meteo/23930/116
+#
+# https://portail-api.meteofrance.fr
+# Mémo identifiant : [EDITED]
+#
+# ===============================
+# Entités créées :
+#  Sensors :
+#    sensor.meteo_france_alertes_55
+#    sensor.meteo_france_alertes_image_today
+#    sensor.meteo_france_alertes_image_tomorrow
+#    sensor.meteo_alerte_55
+#    
+#  Images des cartes d'alertes sont enregistrées sous /www/weather/meteo_france_alerte_today.png et /www/weather/meteo_france_alerte_tomorrow.png
+#  Les sous-dossiers /www/weather doivent être créés.
+#  Les images sont à appeler avec une card "camera" pour accepter le refresh régulier, sinon problème de mise en cache régulier avec la card "image"
+#
+
+# ===============================
+# COMMAND LINE
+# ===============================
+command_line:
+  #Alertes Météo France
+  - sensor:
+      name: Météo France alertes 55
+      unique_id: meteo_france_alertes_55
+      scan_interval: 10800
+      command_timeout: 30
+      command: >
+        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours" -H "accept: */*" -H "apikey: [EDITED]" | jq '{details: {"domain_max_color_id_today": .product.periods[0].timelaps.domain_ids[44].max_color_id,"domain_max_color_id_tomorrow": .product.periods[1].timelaps.domain_ids[44].max_color_id, "update_time": .product.update_time}, "today": .product.periods[0].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id), "tomorrow": .product.periods[1].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id)}'
+      value_template: "{{ value_json.details.domain_max_color_id_today }}"
+      json_attributes:
+        - details
+        - today
+        - tomorrow
+
+  #Images carte alertes aujourd'hui
+  - sensor:
+      name: Météo France alertes image today
+      unique_id: meteo_france_alertes_image_today
+      scan_interval: 14400
+      command_timeout: 30
+      command: >
+        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/vignettenationale-J/encours" -H "accept: */*" -H "apikey: [EDITED]" > ./www/weather/meteo_france_alerte_today.png
+      value_template: "mf_alerte_today"
+  
+  #Images carte alertes demain
+  - sensor:
+      name: Météo France alertes image tomorrow
+      unique_id: meteo_france_alertes_image_tomorrow
+      scan_interval: 14400
+      command_timeout: 30
+      command: >
+        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/vignettenationale-J1/encours" -H "accept: */*" -H "apikey: [EDITED]" > ./www/weather/meteo_france_alerte_tomorrow.png
+      value_template: "mf_alerte_tomorrow"
+
+# ===============================
+# TEMPLATE
+# ===============================
+template:
+  - sensor:
+    - name: Météo Alerte 55
+      unique_id: meteo_alerte_55
+      state: >-
+          {% if is_state("sensor.meteo_france_alertes_55", "1") %}
+            Vert
+          {% elif is_state("sensor.meteo_france_alertes_55", "2") %}
+            Jaune
+          {% elif is_state("sensor.meteo_france_alertes_55", "3") %}
+            Orange
+          {% elif is_state("sensor.meteo_france_alertes_55", "4") %}
+            Rouge
+          {% else %}
+            Vert
+          {% endif %}
+      attributes: 
+        numGeneral: >-
+          {% if is_state("sensor.meteo_france_alertes_55", "1") %}
+            1
+          {% elif is_state("sensor.meteo_france_alertes_55", "2") %}
+            2
+          {% elif is_state("sensor.meteo_france_alertes_55", "3") %}
+            3
+          {% elif is_state("sensor.meteo_france_alertes_55", "4") %}
+            4
+          {% else %}
+            0
+          {% endif %}
+        Canicule: >- 
+          {# La canicule (phénomène 6) disparait en hivers, donc le [5] peut etre ph6 ou ph7(grand froid) #}
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[5] is defined %}
+            {# Si le phénomène attendu pour canicule est grand froid (Ph 7), c'est qu'il n'y a plus d'alertes canicules #}
+            {% if state_attr('sensor.meteo_france_alertes_55', 'today')[5]['phenomenon_id'] == '7' %}
+              unavailable
+            {# Si c'est bien une alerte canicule reçue, on la traite #}
+            {% elif state_attr('sensor.meteo_france_alertes_55', 'today')[5]['phenomenon_id'] == '6' %}
+              {% set a = state_attr('sensor.meteo_france_alertes_55', 'today')[5]['phenomenon_max_color_id'] %}
+              {% if a == 1 %}
+                Vert
+              {% elif a == 2 %}
+                Jaune
+              {% elif a == 3 %}
+                Orange
+              {% elif a == 4 %}
+                Rouge
+              {% else %}
+                Vert
+              {% endif %}
+            {% else %}  
+              unavailable
+            {% endif %}
+          {% else %}
+            unavailable
+          {% endif %}
+        Inondation: >- 
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[3] is defined %}
+            {% set b = state_attr('sensor.meteo_france_alertes_55', 'today')[3]['phenomenon_max_color_id'] %}
+            {% if b == 1 %}
+              Vert
+            {% elif b == 2 %}
+              Jaune
+            {% elif b == 3 %}
+              Orange
+            {% elif b == 4 %}
+              Rouge
+            {% else %}
+              Vert
+            {% endif %}
+          {% else %}
+            Vert
+          {% endif %}
+        Neige-verglas: >-
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[4] is defined %}
+            {% set c = state_attr('sensor.meteo_france_alertes_55', 'today')[4]['phenomenon_max_color_id'] %}
+            {% if c == 1 %}
+              Vert
+            {% elif c == 2 %}
+              Jaune
+            {% elif c == 3 %}
+              Orange
+            {% elif c == 4 %}
+              Rouge
+            {% else %}
+              Vert
+            {% endif %}
+          {% else %}
+            Vert
+          {% endif %}
+        Orages: >-
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[2] is defined %}
+            {% set d = state_attr('sensor.meteo_france_alertes_55', 'today')[2]['phenomenon_max_color_id'] %}
+            {% if d == 1 %}
+              Vert
+            {% elif d == 2 %}
+              Jaune
+            {% elif d == 3 %}
+              Orange
+            {% elif d == 4 %}
+              Rouge
+            {% else %}
+              Vert
+            {% endif %}
+          {% else %}
+            Vert
+          {% endif %}
+        Pluie-inondation: >-
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[1] is defined %}
+            {% set e = state_attr('sensor.meteo_france_alertes_55', 'today')[1]['phenomenon_max_color_id'] %}
+            {% if e == 1 %}
+              Vert
+            {% elif e == 2 %}
+              Jaune
+            {% elif e == 3 %}
+              Orange
+            {% elif e == 4 %}
+              Rouge
+            {% else %}
+              Vert
+            {% endif %}
+          {% else %}
+            Vert
+          {% endif %}
+        'Vent violent': >-
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[0] is defined %}
+            {% set f = state_attr('sensor.meteo_france_alertes_55', 'today')[0]['phenomenon_max_color_id'] %}
+            {% if f == 1 %}
+              Vert
+            {% elif f == 2 %}
+              Jaune
+            {% elif f == 3 %}
+              Orange
+            {% elif f == 4 %}
+              Rouge
+            {% else %}
+              Vert
+            {% endif %}
+          {% else %}
+            Vert
+          {% endif %}
+        'Grand-froid': >-
+          {# Grand froid est le phénomène 7, il est en [6] si canicule est tjs présent #}
+          {# mais peut se retrouver en [5] si canicule n'est plus fourni #}
+          {% if state_attr('sensor.meteo_france_alertes_55', 'today')[6] is defined %}
+            {% set g = state_attr('sensor.meteo_france_alertes_55', 'today')[5]['phenomenon_max_color_id'] %}
+            {% if g == 1 %}
+              Vert
+            {% elif g == 2 %}
+              Jaune
+            {% elif g == 3 %}
+              Orange
+            {% elif g == 4 %}
+              Rouge
+            {% else %}
+              Vert
+            {% endif %}
+          {# Canicule plus fourni, donc décalage possible #}
+          {% elif state_attr('sensor.meteo_france_alertes_55', 'today')[5] is defined %}
+            {# Si c'est bien une grand froid reçue, on la traite #}
+            {% if state_attr('sensor.meteo_france_alertes_55', 'today')[5]['phenomenon_id'] == '7' %}
+              {% set g = state_attr('sensor.meteo_france_alertes_55', 'today')[5]['phenomenon_max_color_id'] %}
+              {% if g == 1 %}
+                Vert
+              {% elif g == 2 %}
+                Jaune
+              {% elif g == 3 %}
+                Orange
+              {% elif g == 4 %}
+                Rouge
+              {% else %}
+                Vert
+              {% endif %}
+            {% else %}  
+              unavailable
+            {% endif %}
+          {% else %}
+            unavailable
+          {% endif %}
+        attribution: "Data provided by Météo-France"
+      icon: mdi:weather-cloudy-alert
