@@ -18,7 +18,7 @@
 #
 
 # ===============================
-# SENSORS
+# SENSOR
 # ===============================
 sensor:
   #Récupération sur l'API de l'éducation nationale
@@ -46,7 +46,7 @@ sensor:
       {%- endfor %}
 
 # ===============================
-# SENSORS
+# TEMPLATE
 # ===============================
 template:
   - binary_sensor:
