@@ -73,3 +73,12 @@ template:
         false
         {% endif %}   
       icon: mdi:account-school
+
+# ===============================
+# CUSTOMIZE
+# ===============================
+homeassistant:
+  customize:
+    sensor.vacances_scolaires:
+      friendly_name: "Vacances"
+      icon: mdi:check-circle
