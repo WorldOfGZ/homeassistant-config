@@ -80,30 +80,17 @@ def datepaques(an):
 def listejoursferies(an):
     F = []  # =liste des dates des jours feries en date-liste d=[j,m,a]
     L = []  # =liste des libelles du jour ferie
-    #Calcul des dattes pour les relatifs à Paques
+    #Calcul des dates relatives à Paques
     date_paques = datepaques(today.year)
     date_lundipaques = date_paques + datetime.timedelta(hours = 24) #+1jour
     date_ascension = date_paques + datetime.timedelta(hours = 24*39) #+39jour
     date_pentecote = date_paques + datetime.timedelta(hours = 24*49) #+49jour
     date_lundipentecote = date_paques + datetime.timedelta(hours = 24*50) #+49jour
 
-    #dp = datepaques(an)
-    #jdp,mdp,adp = dp
-
     # Jour de l'an
     d = [1,1,an]
     F.append(d)
     L.append(u"Jour de l'an")
-
-    # # Jour de test
-    # d = [2,11,an]
-    # F.append(d)
-    # L.append(u"Jour de papoo")
-
-    # # Jour de test
-    # d = [3,11,an]
-    # F.append(d)
-    # L.append(u"Jour de papoo1")
     
     # Dimanche de Paques
     d = [date_paques.day,date_paques.month,date_paques.year]
