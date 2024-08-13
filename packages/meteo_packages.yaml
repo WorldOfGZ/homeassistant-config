@@ -34,6 +34,11 @@
 #  Les images sont utilisées pour créer deux entités caméra. 
 #  C'est une façon détournée d'autoriser un refresh régulier d'une image sans avoir de problèmes de cache
 #
+# ==============================
+# Update 13/08/2024 :
+# Modification de la façon de récupérer les cartes selon le poste suivant : https://forum.hacf.fr/t/alerte-meteo/23930/512
+# Nécessite l'image grisée ./www/weather/meteo_france_alerte_nodata.png en cas d'erreur
+# Ajout également de l'automation qui était mise dans automations.yaml à l'origine.
 
 # ===============================
 # COMMAND LINE
@@ -53,25 +58,61 @@ command_line:
         - today
         - tomorrow
 
+  
   #Images carte alertes aujourd'hui
   - sensor:
       name: Météo France alertes image today
       unique_id: meteo_france_alertes_image_today
       scan_interval: 14400
-      command_timeout: 30
-      command: >
-        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/vignettenationale-J/encours" -H "accept: */*" -H "apikey: [EDITED]" > ./www/weather/meteo_france_alerte_today.png
-      value_template: "mf_alerte_today"
+      command_timeout: 10
+      command: |-
+        api_key="[EDITED]";
+        i=0;
+        while true; do
+        today=$(curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/vignettenationale-J/encours" -H "accept: */*" -H "apikey: $api_key"| base64 -w 0);
+        $((i++));
+        if [[ $(expr length "$today") -gt "10000" ]];
+        then
+            echo "$today" | base64 -d > ./www/weather/meteo_france_alerte_today.png;
+            echo on;
+            break;
+        elif [[ "$i" == '5' ]];
+        then
+            cp -f "./www/weather/meteo_france_alerte_nodata.png" "./www/weather/meteo_france_alerte_today.png";
+            echo unavailable;
+            break;
+        fi
+        sleep 1;
+        done
+      value_template: "{{value}}"
   
   #Images carte alertes demain
   - sensor:
       name: Météo France alertes image tomorrow
       unique_id: meteo_france_alertes_image_tomorrow
       scan_interval: 14400
-      command_timeout: 30
-      command: >
-        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/vignettenationale-J1/encours" -H "accept: */*" -H "apikey: [EDITED]" > ./www/weather/meteo_france_alerte_tomorrow.png
-      value_template: "mf_alerte_tomorrow"
+      command_timeout: 10
+      command: |-
+        api_key="[EDITED]";
+        i=0;
+        while true; do
+        tomorrow=$(curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/vignettenationale-J1/encours" -H "accept: */*" -H "apikey: $api_key"| base64 -w 0);
+        $((i++));
+        if [[ $(expr length "$tomorrow") -gt "10000" ]];
+        then
+            echo "$tomorrow" | base64 -d > ./www/weather/meteo_france_alerte_tomorrow.png;
+            echo on;
+            break;
+        elif [[ "$i" == '5' ]];
+        then
+            cp -f "./www/weather/meteo_france_alerte_nodata.png" "./www/weather/meteo_france_alerte_tomorrow.png";
+            echo unavailable;
+            break;
+        fi
+        sleep 1;
+        done
+      value_template: "{{value}}"
+
 
 # ===============================
 # TEMPLATE
@@ -256,7 +297,8 @@ template:
           {% endif %}
         attribution: "Data provided by Météo-France"
       icon: mdi:weather-cloudy-alert
-      
+
+
 # ===============================
 # CAMERA
 # ===============================
@@ -268,3 +310,126 @@ camera:
   - platform: local_file
     name: "MF_alerte_tomorrow"
     file_path: /config/www/weather/meteo_france_alerte_tomorrow.png
+
+
+
+# ===============================
+# AUTOMATION
+# ===============================
+automation:
+
+  #Récupère régulièrement la carte alerte météo France
+  - id: '9b73b619-98d7-4719-8886-ce48c1d7726c'
+    alias: Alerte Météo France actualisation
+    description: ""
+    trigger:
+      - platform: homeassistant
+        event: start
+        id: Start
+      - platform: time
+        at: "06:32:00"
+        id: Heure632
+      - platform: time
+        at: "16:32:00"
+        id: Heure1632
+      - platform: time_pattern
+        minutes: /5
+        id: Toutesles5minutes
+    condition:
+      - condition: or
+        conditions:
+          - condition: trigger
+            id:
+              - Start
+          - condition: trigger
+            id:
+              - Heure632
+          - condition: trigger
+            id:
+              - Heure1632
+          - condition: and
+            conditions:
+              - condition: trigger
+                id:
+                  - Toutesles5minutes
+              - condition: state
+                entity_id: sensor.meteo_france_alertes_image_today
+                state: unavailable
+            alias: 5minutesETtoday
+          - condition: and
+            conditions:
+              - condition: trigger
+                id:
+                  - Toutesles5minutes
+              - condition: state
+                entity_id: sensor.meteo_france_alertes_image_tomorrow
+                state: unavailable
+            alias: 5minutesETtomorrow
+    action:
+      - action: homeassistant.update_entity
+        data: {}
+        target:
+          entity_id: sensor.meteo_france_alertes_image_today
+      - action: homeassistant.update_entity
+        data: {}
+        target:
+          entity_id:
+            - sensor.meteo_france_alertes_image_tomorrow
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 5
+          milliseconds: 0
+      - alias: Répéter MAJ Today
+        repeat:
+          count: 1
+          sequence:
+            - if:
+                - condition: state
+                  entity_id: sensor.meteo_france_alertes_image_today
+                  state: unavailable
+              then:
+                - action: homeassistant.update_entity
+                  target:
+                    entity_id: sensor.meteo_france_alertes_image_today
+                  data: {}
+                - delay:
+                    hours: 0
+                    minutes: 0
+                    seconds: 5
+                    milliseconds: 0
+      - alias: Répéter MAJ Tomorrow
+        repeat:
+          count: 1
+          sequence:
+            - if:
+                - condition: state
+                  entity_id: sensor.meteo_france_alertes_image_tomorrow
+                  state: unavailable
+              then:
+                - action: homeassistant.update_entity
+                  data: {}
+                  target:
+                    entity_id: sensor.meteo_france_alertes_image_tomorrow
+                - delay:
+                    hours: 0
+                    minutes: 0
+                    seconds: 5
+                    milliseconds: 0
+      - action: homeassistant.update_entity
+        data: {}
+        target:
+          entity_id:
+            - camera.mf_alerte_today
+            - camera.mf_alerte_tomorrow
+      - delay:
+          hours: 0
+          minutes: 0
+          seconds: 5
+          milliseconds: 0
+      - action: homeassistant.update_entity
+        data: {}
+        target:
+          entity_id:
+            - sensor.meteo_france_alertes_55
+    mode: single
