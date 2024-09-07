@@ -1,0 +1,139 @@
+# esphomeupdate_packages.yaml
+# Source : https://github.com/WorldOfGZ/homeassistant-config
+#
+# ===============================
+# Permet de récupérer le numéro de la dernière version de ESPHome et de la comparer avec les versions installées sur les ESP
+#
+# Paramétrage :
+# Aucun
+#
+# ===============================
+# Entités créées :
+#  Sensors :
+#    sensor.esphome_version
+#    sensor.mises_a_jour_des_devices_esp
+#
+#
+# ===============================
+# Exemple de carte Markdown pour les mises à jour
+# <span><ha-icon icon="mdi:home-assistant"></ha-icon> <b> HA et modules</b></span>
+# {% set updates = integration_entities('hassio')| select('search','^update\.')| select('is_state', 'on')| list %}
+# {% if updates | count > 0 %} 🔴 {{ updates | count }} Mise(s) à jour en attente sur HA :
+# {% for update in updates %}
+# - <b>{{state_attr(update,'friendly_name').replace('update','').rstrip()
+# }}:</b> {{ state_attr(update,'installed_version') }} <b>-></b> {{state_attr(update,'latest_version') }} [📄]({{ state_attr(update, 'release_url') }})
+# {% endfor %}
+# {% elif updates | count == 0 %}
+# 🟢 Aucune mise à jour en attente sur HA.
+# {% endif %}
+# ---
+# <span><ha-icon icon="hacs:hacs"></ha-icon> <b>Hacs Community Store</b> v{{ state_attr('update.hacs_update', 'installed_version') }} [📄](https://github.com/hacs/integration/releases)</span>
+# {% set updates = integration_entities('hacs')| select('search','^update\.')| select('is_state', 'on')| list %}
+# {% if updates | count > 0 %} 🔴 {{ updates | count }} Mise(s) à jour en attente sur HACS :
+# {% for update in updates %}
+# - <b>{{state_attr(update,'friendly_name').replace('update','').rstrip()
+# }}:</b> {{ state_attr(update,'installed_version') }} <b>-></b> {{state_attr(update,'latest_version') }} [📄]({{ state_attr(update, 'release_url') }})
+# {% endfor %}
+# {% elif updates | count == 0 %}
+# 🟢 Aucune mise à jour en attente sur HACS.
+# {% endif %}
+# ---
+# <span><ha-icon icon="mdi:home-automation"></ha-icon> <b> ESP-Home</b> v{{ states('sensor.esphome_version') }} [📄](https://github.com/esphome/esphome/releases/)</span>
+# {% if state_attr('sensor.mises_a_jour_des_devices_esp','outdated_devices_number') | int > 0 %} 🔴 {{ states('sensor.mises_a_jour_des_devices_esp') }}
+# {% elif updates | count == 0 %}
+# 🟢 Aucune mise à jour.
+# {% endif %}
+
+
+
+# ===============================
+# COMMAND LINE
+# ===============================
+command_line:
+  #Réalisation du speedtest
+  - sensor:
+    name: esphome_version
+    unique_id: esphome_version
+    command: curl -s -X GET https://hub.docker.com/v2/namespaces/esphome/repositories/esphome/tags?page_size=50 | jq -r '.results|.[]|.name' | egrep -i "^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$" | sort -rn | head -1
+    icon: mdi:application-braces-outline
+    scan_interval: 21600 # time in seconds, expected refresh every 6 hours (6 hours * 60 minutes * 60 seconds = 21.600)
+
+# ===============================
+# TEMPLATE
+# ===============================
+template:
+  - trigger:
+      - platform: time_pattern
+        minutes: /5
+    sensor:
+      #Vérification des versions des ESP par rapport à la dernière version
+      #Triggered car non mis a jour automatiquement
+      - name: "Mises a jour des devices ESP"
+        unique_id: mise_a_jour_des_devices_esp
+        icon: >-
+          {%- set entities =  integration_entities('esphome') | map('device_id') | unique | list -%}
+          {%- set ns = namespace(up2date = [], outdated = []) -%}
+          {%- for entity in entities -%}
+            {%- set device_version = device_attr((entity), 'sw_version') | regex_findall_index('(\d+\.\d+\.\d+)') | join -%}
+            {%- if device_version is defined and states(entity) != "unavailable" -%}
+              {%- if states('sensor.esphome_version') in device_version -%}
+                {%- set ns.up2date = ns.up2date + [ entity ] -%}
+              {%- else -%}
+                {%- set ns.outdated = ns.outdated + [ entity ] -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- if ns.outdated | count >= 1 -%}
+            mdi:package-up
+          {%- elif ns.up2date | count >= 1 -%}
+            mdi:package-check
+          {%- else -%}
+            mdi:help-box
+          {%- endif -%}
+        attributes: 
+          outdated_devices: >-
+            {%- set entities =  integration_entities('esphome') | map('device_id') | unique | list -%}
+            {%- set ns = namespace(outdated = []) -%}
+            {%- for entity in entities -%}
+              {%- set device_version = device_attr((entity), 'sw_version') | regex_findall_index('(\d+\.\d+\.\d+)') | join -%}
+              {%- if device_version is defined and states(entity) != "unavailable" -%}
+                {%- if not states('sensor.esphome_version') in device_version -%}
+                  {%- set ns.outdated = ns.outdated + [ device_version ] -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- ns.outdated -}}
+          outdated_devices_number: >-
+            {%- set entities =  integration_entities('esphome') | map('device_id') | unique | list -%}
+            {%- set ns = namespace(outdated = []) -%}
+            {%- for entity in entities -%}
+              {%- set device_version = device_attr((entity), 'sw_version') | regex_findall_index('(\d+\.\d+\.\d+)') | join -%}
+              {%- if device_version is defined and states(entity) != "unavailable" -%}
+                {%- if not states('sensor.esphome_version') in device_version -%}
+                  {%- set ns.outdated = ns.outdated + [ device_version ] -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {{- ns.outdated | count | int -}}
+        state: >-
+          {%- set entities =  integration_entities('esphome') | map('device_id') | unique | list -%}
+          {%- set ns = namespace(up2date = [], outdated = []) -%}
+          {%- for entity in entities -%}
+            {%- set device_version = device_attr((entity), 'sw_version') | regex_findall_index('(\d+\.\d+\.\d+)') | join -%}
+            {%- if device_version is defined and states(entity) != "unavailable" -%}
+              {%- if states('sensor.esphome_version') in device_version -%}
+                {%- set ns.up2date = ns.up2date + [ entity ] -%}
+              {%- else -%}
+                {%- set ns.outdated = ns.outdated + [ entity ] -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- if ns.outdated | count == 0 and ns.up2date | count >= 1 -%}
+            Aucune mise à jour
+          {%- elif ns.outdated | count == 1 -%}
+            Mise à jour disponible sur 1 appareil
+          {%- elif ns.outdated | count >= 2 -%}
+            {{- "Mise à jour disponible sur " + ns.outdated | count | string + " appareils"-}}
+          {%- else -%}
+            Aucun ESPHome-device trouvé
+          {%- endif -%}

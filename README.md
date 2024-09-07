@@ -15,6 +15,10 @@ Il sera mis à jour en fonction de la pertinence des informations à partager.
 > ```
 > dans le fichier `configuration.yml`
 
+### ESPHome Update
+Permet de récupérer la dernière version de ESPHome.
+Créée également un sensor qui vérifie les valeurs de firmware des ESP et les compare à la dernière version.
+
 ### Météo
 Permet de récupérer les alertes météo l'API de Météo France. 
 Les cartes d'alertes aujourd'hui et demain sont également récupérées pour pouvoir être affichées dans une card
