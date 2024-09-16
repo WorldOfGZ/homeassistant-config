@@ -40,7 +40,7 @@
 # ---
 # <span><ha-icon icon="mdi:home-automation"></ha-icon> <b> ESP-Home</b> v{{ states('sensor.esphome_version') }} [📄](https://github.com/esphome/esphome/releases/)</span>
 # {% if state_attr('sensor.mises_a_jour_des_devices_esp','outdated_devices_number') | int > 0 %} 🔴 {{ states('sensor.mises_a_jour_des_devices_esp') }}
-# {% elif updates | count == 0 %}
+# {% else %}
 # 🟢 Aucune mise à jour.
 # {% endif %}
 
