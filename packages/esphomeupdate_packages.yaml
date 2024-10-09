@@ -40,30 +40,28 @@
 # ---
 # <span><ha-icon icon="mdi:home-automation"></ha-icon> <b> ESP-Home</b> v{{ states('sensor.esphome_version') }} [📄](https://github.com/esphome/esphome/releases/)</span>
 # {% if state_attr('sensor.mises_a_jour_des_devices_esp','outdated_devices_number') | int > 0 %} 🔴 {{ states('sensor.mises_a_jour_des_devices_esp') }}
-# {% elif updates | count == 0 %}
+# {% else %}
 # 🟢 Aucune mise à jour.
 # {% endif %}
-
-
 
 # ===============================
 # COMMAND LINE
 # ===============================
 command_line:
-  #Réalisation du speedtest
+  #Récupération du numéro de la dernière version
   - sensor:
-    name: esphome_version
-    unique_id: esphome_version
-    command: curl -s -X GET https://hub.docker.com/v2/namespaces/esphome/repositories/esphome/tags?page_size=50 | jq -r '.results|.[]|.name' | egrep -i "^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$" | sort -rn | head -1
-    icon: mdi:application-braces-outline
-    scan_interval: 21600 # time in seconds, expected refresh every 6 hours (6 hours * 60 minutes * 60 seconds = 21.600)
+      name: esphome_version
+      unique_id: esphome_version
+      command: curl -s -X GET https://hub.docker.com/v2/namespaces/esphome/repositories/esphome/tags?page_size=50 | jq -r '.results|.[]|.name' | egrep -i "^[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$" | sort -rn | head -1
+      icon: mdi:application-braces-outline
+      scan_interval: 21600 # time in seconds, expected refresh every 6 hours (6 hours * 60 minutes * 60 seconds = 21.600)
 
 # ===============================
 # TEMPLATE
 # ===============================
 template:
   - trigger:
-      - platform: time_pattern
+      - trigger: time_pattern
         minutes: /5
     sensor:
       #Vérification des versions des ESP par rapport à la dernière version
@@ -90,7 +88,7 @@ template:
           {%- else -%}
             mdi:help-box
           {%- endif -%}
-        attributes: 
+        attributes:
           outdated_devices: >-
             {%- set entities =  integration_entities('esphome') | map('device_id') | unique | list -%}
             {%- set ns = namespace(outdated = []) -%}
