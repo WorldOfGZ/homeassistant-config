@@ -51,14 +51,13 @@ command_line:
       scan_interval: 10800
       command_timeout: 30
       command: >
-        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours" -H "accept: */*" -H "apikey: [EDITED]" | jq '{details: {"domain_max_color_id_today": .product.periods[0].timelaps.domain_ids[44].max_color_id,"domain_max_color_id_tomorrow": .product.periods[1].timelaps.domain_ids[44].max_color_id, "update_time": .product.update_time}, "today": .product.periods[0].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id), "tomorrow": .product.periods[1].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id)}'
+        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours" -H "accept: */*" -H "apikey:[EDITED]" | jq '{details: {"domain_max_color_id_today": .product.periods[0].timelaps.domain_ids[44].max_color_id,"domain_max_color_id_tomorrow": .product.periods[1].timelaps.domain_ids[44].max_color_id, "update_time": .product.update_time}, "today": .product.periods[0].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id), "tomorrow": .product.periods[1].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id)}'
       value_template: "{{ value_json.details.domain_max_color_id_today }}"
       json_attributes:
         - details
         - today
         - tomorrow
 
-  
   #Images carte alertes aujourd'hui
   - sensor:
       name: Météo France alertes image today
@@ -322,20 +321,20 @@ automation:
   - id: '9b73b619-98d7-4719-8886-ce48c1d7726c'
     alias: Alerte Météo France actualisation
     description: ""
-    trigger:
-      - platform: homeassistant
+    triggers:
+      - trigger: homeassistant
         event: start
         id: Start
-      - platform: time
+      - trigger: time
         at: "06:32:00"
         id: Heure632
-      - platform: time
+      - trigger: time
         at: "16:32:00"
         id: Heure1632
-      - platform: time_pattern
+      - trigger: time_pattern
         minutes: /5
         id: Toutesles5minutes
-    condition:
+    conditions:
       - condition: or
         conditions:
           - condition: trigger
@@ -365,7 +364,7 @@ automation:
                 entity_id: sensor.meteo_france_alertes_image_tomorrow
                 state: unavailable
             alias: 5minutesETtomorrow
-    action:
+    actions:
       - action: homeassistant.update_entity
         data: {}
         target:
@@ -427,6 +426,27 @@ automation:
           minutes: 0
           seconds: 5
           milliseconds: 0
+      - action: homeassistant.update_entity
+        data: {}
+        target:
+          entity_id:
+            - sensor.meteo_france_alertes_55
+    mode: single
+  
+  #Mise à jour du niveau d'alerte en cas d'indispo suite à une erreur par exemple
+  - id: 'bcf16b90-ce5f-404a-8689-b20882323e44'
+    alias: Mise à jour niveau d'alerte en cas d'indisponibilité
+    description: >-
+      Parfois la mise à jour de l'API produit une indisponibilité du sensor. Cette
+      automation permet de tenter une mise à jour si le capteur est passé à unknow
+    triggers:
+      - trigger: time_pattern
+        minutes: /5
+    conditions:
+      - condition: state
+        entity_id: sensor.meteo_france_alertes_55
+        state: unknown
+    actions:
       - action: homeassistant.update_entity
         data: {}
         target:
