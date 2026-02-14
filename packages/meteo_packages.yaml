@@ -7,22 +7,22 @@
 #
 # Paramétrage :
 # Une clé API doit être créée et renseignée pour les appels CURL GET,
-# à remplacer à la place de [EDITED], dans les 3 command_line
+# elle doit être mis dans 3 endroits
 #
 # L'API ne prend pas en compte les numéros de département réel... Dans ce package
-# je récupère les données du département 55, ce qui correspond au domain_ids[44] dans l'API.
-# Ce numéro est à changer à 4 endroits dans la première requète, la table de correspondance est dispo ici :
-# https://forum.hacf.fr/t/alerte-meteo/23930/116
+# je récupère les données du département 55, et je créé une variable qui stock les
+# données du département select(.domain_id == "55"); Remplacez 55 par votre
+# numéro de département. Egalement le nom de l'entité !
 #
 # https://portail-api.meteofrance.fr
 # Mémo identifiant : [EDITED]
 #
-# Installation : 
+# Installation :
 # Mettre ce package dans /packages
 # Créer le dossier /www/weather/ et mettre l'image meteo_france_alerte_nodata.png
 # Redémarrer HA
 # Lancer l'automatisation pour récupérer les images d'alertes
-# Créer dans l'UI Local file ces 2 entitées : 
+# Créer dans l'UI Local file ces 2 entitées :
 #   - "MF_alerte_today" /config/www/weather/meteo_france_alerte_today.png
 #   - "MF_alerte_tomorrow" /config/www/weather/meteo_france_alerte_tomorrow.png
 #
@@ -44,7 +44,7 @@
 #  C'est une façon détournée d'autoriser un refresh régulier d'une image sans avoir de problèmes de cache
 #
 # ==============================
-# Update 09/11/2024 : 
+# Update 09/11/2024 :
 # Suite passage HA 2021.11.0 et local_file uniquement configurable en UI
 # Les caméras doivent être créés dans l'intégration Local File Directement
 #
@@ -64,8 +64,32 @@ command_line:
       scan_interval: 10800
       command_timeout: 30
       command: >
-        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours" -H "accept: */*" -H "apikey: [EDITED]" | jq '{details: {"domain_max_color_id_today": .product.periods[0].timelaps.domain_ids[44].max_color_id,"domain_max_color_id_tomorrow": .product.periods[1].timelaps.domain_ids[44].max_color_id, "update_time": .product.update_time}, "today": .product.periods[0].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id), "tomorrow": .product.periods[1].timelaps.domain_ids[44].phenomenon_items | sort_by(.phenomenon_id)}'
+        curl -X GET "https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours"
+        -H "accept: */*"
+        -H "apikey: [EDITED]" |
+        jq '
+        def dept(period):
+          period.timelaps.domain_ids[]
+          | select(.domain_id == "55");
+
+        {
+          details: {
+            domain_max_color_id_today:
+              (dept(.product.periods[0]).max_color_id),
+            domain_max_color_id_tomorrow:
+              (dept(.product.periods[1]).max_color_id),
+            update_time: .product.update_time
+          },
+          today:
+            (dept(.product.periods[0]).phenomenon_items
+              | sort_by(.phenomenon_id)),
+          tomorrow:
+            (dept(.product.periods[1]).phenomenon_items
+              | sort_by(.phenomenon_id))
+        }'
+
       value_template: "{{ value_json.details.domain_max_color_id_today }}"
+
       json_attributes:
         - details
         - today
